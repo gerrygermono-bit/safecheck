@@ -41,6 +41,57 @@ export default function Home() {
     }
   };
 
+  const handleScreenCapture = async () => {
+    try {
+      // Check if API supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        alert('Screen capture is not supported in your browser. Please use the upload button or try a modern browser like Chrome or Edge.');
+        return;
+      }
+
+      // Request screen capture
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true
+      });
+
+      // Create video element to capture frame
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = resolve;
+      });
+
+      // Capture single frame to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+
+      // Stop stream
+      stream.getTracks().forEach(track => track.stop());
+
+      // Convert canvas to blob
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const file = new File([blob], 'screen-capture.png', { type: 'image/png' });
+          await handleImageSelect(file);
+        }
+      }, 'image/png');
+
+    } catch (error) {
+      if ((error as Error).name === 'NotAllowedError') {
+        // User cancelled - do nothing
+        return;
+      }
+      console.error('Screen capture failed:', error);
+      alert('Failed to capture screen. Please try again or use the upload button.');
+    }
+  };
+
   const handleSpeakAloud = () => {
     if (!verdict) return;
     
@@ -78,7 +129,11 @@ export default function Home() {
         {/* Main Content */}
         <main className="space-y-8">
           {!verdict && !isLoading && (
-            <ScanButton onImageSelect={handleImageSelect} isLoading={isLoading} />
+            <ScanButton 
+              onImageSelect={handleImageSelect} 
+              onScreenCapture={handleScreenCapture}
+              isLoading={isLoading} 
+            />
           )}
 
           {isLoading && (
